@@ -51,8 +51,9 @@ int main(void)
 	systick_set_frequency(10, rcc_ahb_frequency);
 	systick_counter_enable();
 	systick_interrupt_enable();
-	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
-        gpio_clear(GPIOC, GPIO13);
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL,
+		      GPIO13);
+	gpio_clear(GPIOC, GPIO13);
 
 	usb_tty_init();
 

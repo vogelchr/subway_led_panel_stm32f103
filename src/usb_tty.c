@@ -211,7 +211,7 @@ static unsigned int y = 0;
 static void put_nibble_at_xy(unsigned char nbl)
 {
 	unsigned int i;
-	for (i=0; i<4; i++) {
+	for (i = 0; i < 4; i++) {
 		if (nbl & 1)
 			LEDPANEL_SET(x, y);
 		else

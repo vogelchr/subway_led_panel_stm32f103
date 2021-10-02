@@ -33,10 +33,9 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 	/* this is now very specific to the single matrix */
 	/* we have 3x (16+16+8 pixels, 8 space) */
 
-
 	s = 3;
 	while (s) {
-		s--;  /* s = 2, 1, 0 */
+		s--; /* s = 2, 1, 0 */
 		uint8_t *src = NULL;
 
 		if (s >= 2 && rowaddr >= 4) /* out of visible range */
@@ -107,4 +106,3 @@ void ledpanel_buffer_update(unsigned int rowmode, unsigned int row_or_col)
 	for (y = 0; y < LEDPANEL_PIX_HEIGHT; y++)
 		LEDPANEL_SET(x, y);
 }
-
