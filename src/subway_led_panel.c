@@ -26,24 +26,9 @@
 #define COL_PIN_OE GPIO8
 #define COL_PIN_LE GPIO4
 
-/*
- *  IO configuration
- *   row A0    => PA0
- *   row A1    => PA1
- *   row A2    => PA2
- *   row ~E1   => PA3
- *   row E2  -> Vcc for on
- *
- *   col DIn   => MOSI1, PA
- *   col Dout  => MISO1, PA4
- *   col CLK   => SCK1, PA3
- *   col OE    => PA8
- *   col LE    => PA4
- */
-
 /* for timer configuration */
 static const unsigned int led_cycles = 8; /* 8 row cycles */
-static const unsigned int led_refresh = 30; /* Hz */
+static const unsigned int led_refresh = 60; /* Hz */
 static const unsigned int tim2_period = 1000;
 static unsigned int tim2_prescaler;
 
@@ -53,31 +38,47 @@ void tim2_isr()
 {
 	timer_clear_flag(TIM2, TIM_SR_UIF);
 
+	/* disable row and column output drivers */
 	gpio_set(ROW_IO_BANK, ROW_PIN_nE1);
-	gpio_set(ROW_IO_BANK, ROW_PIN_nE1);
-	if (curr_col <= 7) {
-		gpio_clear(ROW_IO_BANK, 0x07);
-		gpio_set(ROW_IO_BANK, curr_col & 0x07);
-		curr_col = (curr_col + 1) & 0x07;
+	gpio_clear(COL_IO_BANK, COL_PIN_OE);
+
+	if (curr_col < 8) {
+		/* latch data from shiftregs to column driver out */
+		gpio_set(COL_IO_BANK, COL_PIN_LE);
+
+		/* set row select pins for the row that has been
+		   transfered before */
+		gpio_clear(ROW_IO_BANK, 0x0007 & ~curr_col);
+		gpio_set(ROW_IO_BANK, 0x0007 & curr_col);
+
+		/* enable row and column output drivers */
+		gpio_clear(ROW_IO_BANK, ROW_PIN_nE1);
+		gpio_set(COL_IO_BANK, COL_PIN_OE);
+
+		/* next row to be transfered: */
+		curr_col = (curr_col + 1) & 7;
 	} else {
+		/* special handling for the first row that's ever
+		transfered, there's not yet valid data in the
+		column drivers, so don't enable the outputs */
 		curr_col = 0;
 	}
 
+	/* prepare bits to send to the column driver in correct order */
+	ledpanel_buffer_prepare_shiftreg(curr_col);
+
+	/* deassert latch enable pin */
 	gpio_clear(COL_IO_BANK, COL_PIN_LE);
-	gpio_clear(ROW_IO_BANK, ROW_PIN_nE1);
 
-	/* DMA still running? Shouldn't happen. */
-	if (DMA1_CCR(3) & DMA_CCR_EN) {
-	}
-
+	/* restart DMA to transfer SPI data */
 	DMA1_CCR(3) = 0;
 	DMA1_CNDTR(3) = 0; /* make it wait ... */
 
-	DMA1_CMAR(3) = (uint32_t) &ledpanel_buffer[curr_col*LEDPANEL_N_ROW_GROUPS*LEDPANEL_N_COL_DRIVERS];
+	DMA1_CMAR(3) = (uint32_t)&ledpanel_buffer_shiftreg;
 	DMA1_CPAR(3) = (uint32_t)&SPI1_DR; /* peripheral address register */
 
 	DMA1_CCR(3) = DMA_CCR_MINC | DMA_CCR_DIR | DMA_CCR_EN | DMA_CCR_TCIE;
-	DMA1_CNDTR(3) = /*uint16_t!*/ 2*LEDPANEL_N_ROW_GROUPS*LEDPANEL_N_COL_DRIVERS;
+	DMA1_CNDTR(3) = sizeof(ledpanel_buffer_shiftreg);
 }
 
 void dma1_channel3_isr(void)
@@ -88,6 +89,22 @@ void dma1_channel3_isr(void)
 
 void subway_led_panel_start()
 {
+	/* GPIO GPIOA3 is Timer/Counter 2, Channel 4 */
+	timer_enable_oc_output(TIM2, TIM_OC4);
+	gpio_set_mode(GPIO_BANK_TIM2_CH4, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_TIM2_CH4);
+	timer_enable_irq(TIM2, TIM_DIER_UIE);
+}
+
+void subway_led_panel_stop()
+{
+	timer_disable_irq(TIM2, TIM_DIER_UIE);
+
+	/* GPIO GPIOA3 is Timer/Counter 2, Channel 4 */
+	gpio_set_mode(GPIO_BANK_TIM2_CH4, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_TIM2_CH4);
+	gpio_set(GPIO_BANK_TIM2_CH4, GPIO_TIM2_CH4);
+	timer_disable_oc_output(TIM2, TIM_OC4);
 }
 
 void subway_led_panel_init()
@@ -102,9 +119,16 @@ void subway_led_panel_init()
 	gpio_set_mode(ROW_IO_BANK, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, ROW_PIN_A2);
 	gpio_clear(ROW_IO_BANK, ROW_PIN_A2);
-	gpio_set_mode(ROW_IO_BANK, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, ROW_PIN_nE1);
-	gpio_clear(ROW_IO_BANK, ROW_PIN_nE1);
+
+	/*
+	   depending on whether the panel is refreshed or not
+	   we change TIM2_CH4 to either timer compare output
+	   (brighness PWM) or "normal" gpio, which is "1" for
+	   panel OFF
+	*/
+	gpio_set_mode(GPIO_BANK_TIM2_CH4, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_TIM2_CH4);
+	gpio_set(GPIO_BANK_TIM2_CH4, GPIO_TIM2_CH4);
 
 	gpio_set_mode(COL_IO_BANK, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, COL_PIN_OE);
@@ -123,7 +147,7 @@ void subway_led_panel_init()
 		   (SPI_CR1_BR_FPCLK_DIV_64 << 3) | SPI_CR1_CPHA;
 	SPI1_CR2 = SPI_CR2_TXDMAEN; /* enable DMA */
 
-	/* SCL and MOSI are outputs in alternate mode, MISO is input with weak pullup */
+	/* CLK and MOSI are outputs in alternate mode, MISO is input with weak pullup */
 	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_SCK);
 	gpio_set_mode(GPIO_BANK_SPI1_MOSI, GPIO_MODE_OUTPUT_10_MHZ,
@@ -155,6 +179,13 @@ void subway_led_panel_init()
 	timer_set_prescaler(TIM2,
 			    tim2_prescaler); /* 36MHz * 2 / 36'000 = 2kHz  */
 	timer_set_period(TIM2, tim2_period); /* 2kHz / 200 = 10 Hz overflow */
+
+	/* TImer2, CH2 on PA4 */
+	timer_set_oc_mode(TIM2, TIM_OC4, TIM_OCM_PWM1);
+	/* on for only a fifth of the time */
+	timer_set_oc_value(TIM2, TIM_OC4, (4 * tim2_period) / 5);
+	timer_set_oc_polarity_high(TIM2, TIM_OC4);
+
 	timer_enable_counter(TIM2);
-	timer_enable_irq(TIM2, TIM_DIER_UIE);
+	subway_led_panel_start();
 }

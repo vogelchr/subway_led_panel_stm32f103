@@ -1,12 +1,26 @@
 #ifndef LEDPANEL_BUFFER_H
 #define LEDPANEL_BUFFER_H
 
-#define LEDPANEL_N_ROW_STRIPES 8
-#define LEDPANEL_N_ROW_GROUPS 3
-#define LEDPANEL_N_COL_DRIVERS 9
-
 #include <stdint.h>
+#include <stdlib.h>
 
-extern uint16_t ledpanel_buffer[LEDPANEL_N_ROW_STRIPES*LEDPANEL_N_ROW_GROUPS*LEDPANEL_N_COL_DRIVERS];
+#define LEDPANEL_PIX_WIDTH     40
+#define LEDPANEL_PIX_HEIGHT    20
+#define LEDPANEL_SPI_BYTES     18    // 9 shifregisters in total
+
+#define LEDPANEL_U32_PITCH   ((LEDPANEL_PIX_WIDTH+31)/32)
+
+#define LEDPANEL_WORD(x, y)  (ledpanel_buffer[((x) / 32) + LEDPANEL_U32_PITCH * (y)])
+#define LEDPANEL_BIT(x)   (1<<((x)%32)
+
+#define LEDPANEL_PIXEL(x,y)  (LEDPANEL_WORD((x), (y)) & LEDPANEL_BIT(x))
+#define LEDPANEL_SET(x,y)    do { LEDPANEL_WORD((x),(y)) |= LEDPANEL_BIT(x)}
+#define LEDPANEL_CLR(x,y)    do { LEDPANEL_WORD((x),(y)) &= ~ LEDPANEL_BIT(x)}
+
+extern uint32_t ledpanel_buffer[LEDPANEL_U32_PITCH*LEDPANEL_PIX_HEIGHT];
+extern uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
+
+extern void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr);
+extern void ledpanel_buffer_init(void);
 
 #endif
