@@ -1,5 +1,6 @@
 #include "subway_led_panel.h"
 #include "ledpanel_buffer.h"
+#include "usb_tty.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +46,6 @@ int main(void)
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
 
-
 	/* systick handler */
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
 	systick_set_frequency(10, rcc_ahb_frequency);
@@ -54,10 +54,13 @@ int main(void)
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
         gpio_clear(GPIOC, GPIO13);
 
+	usb_tty_init();
+
 	ledpanel_buffer_init();
 	subway_led_panel_init();
 	subway_led_panel_start();
 
 	while (1) {
+		usb_tty_poll();
 	}
 }
