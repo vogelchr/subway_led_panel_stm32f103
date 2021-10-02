@@ -1,0 +1,12 @@
+#ifndef LEDPANEL_BUFFER_H
+#define LEDPANEL_BUFFER_H
+
+#define LEDPANEL_N_ROW_STRIPES 8
+#define LEDPANEL_N_ROW_GROUPS 3
+#define LEDPANEL_N_COL_DRIVERS 9
+
+#include <stdint.h>
+
+extern uint16_t ledpanel_buffer[LEDPANEL_N_ROW_STRIPES*LEDPANEL_N_ROW_GROUPS*LEDPANEL_N_COL_DRIVERS];
+
+#endif
