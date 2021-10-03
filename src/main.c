@@ -29,6 +29,8 @@ void sys_tick_handler()
 	}
 }
 
+static uint16_t debug_ctr;
+
 int main(void)
 {
 	/* === system clock initialization ===
@@ -46,6 +48,10 @@ int main(void)
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
 
+	/* debug LEDs PB12, 13, 14, 15 */
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, 0xf000);
+
 	/* systick handler */
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
 	systick_set_frequency(10, rcc_ahb_frequency);
@@ -62,6 +68,10 @@ int main(void)
 	subway_led_panel_start();
 
 	while (1) {
+		debug_ctr++;
+		gpio_set(GPIOB, 0xf000 & debug_ctr);
+		gpio_clear(GPIOB, 0xf000 & ~debug_ctr);
+
 		usb_tty_poll();
 	}
 }

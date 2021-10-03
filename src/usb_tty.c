@@ -5,12 +5,14 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <libopencm3/cm3/cortex.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
+#include <libopencm3/stm32/st_usbfs.h>
 
 static usbd_device *usb_tty_usbdev;
 
@@ -210,6 +212,8 @@ static unsigned int y = 0;
 
 static void put_nibble_at_xy(unsigned char nbl)
 {
+	(void)nbl;
+
 	unsigned int i;
 	for (i = 0; i < 4; i++) {
 		if (nbl & 1)
@@ -248,6 +252,7 @@ static void cdcacm_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 		case 'A' ... 'F':
 			put_nibble_at_xy(c - 'A' + 10);
 			break;
+#if 1
 		case 'r':
 			tx_len = snprintf(usb_txbuf, sizeof(usb_txbuf),
 					  "row mode selected\r\n");
@@ -270,19 +275,25 @@ static void cdcacm_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 					  "%u\r\n", row_or_col);
 			ledpanel_buffer_update(rowmode, row_or_col);
 			break;
+#endif
 		}
 	}
-
+#if 1
 	if (tx_len)
 		usbd_ep_write_packet(usbd_dev, 0x82, usb_txbuf, tx_len);
+#endif
 }
 
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
 {
 	(void)wValue;
 
+	/* Endpoint OUT 1 (host->device) */
 	usbd_ep_setup(usbd_dev, 0x01, USB_ENDPOINT_ATTR_BULK, 64,
 		      cdcacm_data_rx_cb);
+	usbd_ep_nak_set(usbd_dev, 0x01, 0); 
+
+	/* Endpoint IN 1 (device->host) */
 	usbd_ep_setup(usbd_dev, 0x82, USB_ENDPOINT_ATTR_BULK, 64, NULL);
 	usbd_ep_setup(usbd_dev, 0x83, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
 
@@ -294,6 +305,13 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
 
 void usb_tty_poll()
 {
+	/* this is a desperate attempt to fix the problem wher the
+	   endpoint ends up in a NAK state, which I am too dumb to find
+	   out why it's happening. */
+#if 0
+	if ((*USB_EP_REG(0x01) & USB_EP_RX_STAT) == USB_EP_RX_STAT_NAK)
+		 USB_SET_EP_RX_STAT(0x01, USB_EP_RX_STAT_VALID);
+#endif
 	usbd_poll(usb_tty_usbdev);
 }
 

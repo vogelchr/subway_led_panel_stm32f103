@@ -21,7 +21,7 @@ static void memcpy_bitflip_reverse(uint8_t *restrict dst, uint8_t *restrict src,
 {
 	uint8_t *p = dst + (len - 1);
 
-	while (--len)
+	while (len--)
 		*p-- = *src++;
 }
 

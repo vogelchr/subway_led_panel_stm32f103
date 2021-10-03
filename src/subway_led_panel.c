@@ -1,3 +1,6 @@
+/*
+ */
+
 #include "subway_led_panel.h"
 #include "ledpanel_buffer.h"
 
@@ -20,7 +23,6 @@
 #define ROW_PIN_A0 GPIO0
 #define ROW_PIN_A1 GPIO1
 #define ROW_PIN_A2 GPIO2
-#define ROW_PIN_nE1 GPIO3
 
 #define COL_IO_BANK GPIOA
 #define COL_PIN_OE GPIO8
@@ -36,10 +38,7 @@ static uint8_t curr_col = 0; /* current column */
 
 void tim2_isr()
 {
-	timer_clear_flag(TIM2, TIM_SR_UIF);
-
 	/* disable row and column output drivers */
-	gpio_set(ROW_IO_BANK, ROW_PIN_nE1);
 	gpio_clear(COL_IO_BANK, COL_PIN_OE);
 
 	if (curr_col < 8) {
@@ -52,7 +51,6 @@ void tim2_isr()
 		gpio_set(ROW_IO_BANK, 0x0007 & curr_col);
 
 		/* enable row and column output drivers */
-		gpio_clear(ROW_IO_BANK, ROW_PIN_nE1);
 		gpio_set(COL_IO_BANK, COL_PIN_OE);
 
 		/* next row to be transfered: */
@@ -77,14 +75,10 @@ void tim2_isr()
 	DMA1_CMAR(3) = (uint32_t)&ledpanel_buffer_shiftreg;
 	DMA1_CPAR(3) = (uint32_t)&SPI1_DR; /* peripheral address register */
 
-	DMA1_CCR(3) = DMA_CCR_MINC | DMA_CCR_DIR | DMA_CCR_EN | DMA_CCR_TCIE;
+	DMA1_CCR(3) = DMA_CCR_MINC | DMA_CCR_DIR | DMA_CCR_EN; // | DMA_CCR_TCIE;
 	DMA1_CNDTR(3) = sizeof(ledpanel_buffer_shiftreg);
-}
 
-void dma1_channel3_isr(void)
-{
-	DMA1_CCR(3) = 0;
-	dma_clear_interrupt_flags(DMA1, DMA_CHANNEL3, DMA_TCIF | DMA_GIF);
+	timer_clear_flag(TIM2, TIM_SR_UIF);
 }
 
 void subway_led_panel_start()
@@ -158,7 +152,6 @@ void subway_led_panel_init()
 
 	DMA1_CCR(3) = 0;
 	DMA1_CNDTR(3) = 0;
-	nvic_enable_irq(NVIC_DMA1_CHANNEL3_IRQ);
 
 	/* === Timer2 init === */
 	rcc_periph_clock_enable(RCC_TIM2);
