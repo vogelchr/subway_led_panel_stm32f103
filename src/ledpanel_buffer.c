@@ -6,7 +6,7 @@
 uint32_t ledpanel_buffer[LEDPANEL_U32_PITCH * LEDPANEL_PIX_HEIGHT];
 uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
 
-static MTRand ledpanel_buffer_mt;
+// static MTRand ledpanel_buffer_mt;
 
 static uint8_t bitflip(uint8_t v)
 {
@@ -21,9 +21,14 @@ static void memcpy_bitflip_reverse(uint8_t *restrict dst, uint8_t *restrict src,
 {
 	uint8_t *p = dst + (len - 1);
 
-	while (len--)
+	while (--len)
 		*p-- = *src++;
 }
+
+/* this function is the most panel specific in the whole codebase,
+   it prepares the bits in the shift register, when outputting
+   to row configuration "rowaddr", e.g. what needs to be loaded
+   when A0..A2 == rowaddr */
 
 void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 {
@@ -33,29 +38,28 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 	/* this is now very specific to the single matrix */
 	/* we have 3x (16+16+8 pixels, 8 space) */
 
-	s = 3;
-	while (s) {
-		s--; /* s = 2, 1, 0 */
-		uint8_t *src = NULL;
+	/* counts 2, 1, 0, unsigned wrap around is well defined! */
+	for (s = 2; s != ~0; s--) {
+		uint8_t *src;
 
-		if (s >= 2 && rowaddr >= 4) /* out of visible range */
+		if (s == 2 && rowaddr > 3) /* last stripe only has 4 rows */
 			src = NULL;
-		else {
-			unsigned int src_offs;
-			src_offs = LEDPANEL_U32_PITCH * (rowaddr + s * 8);
-			src = (uint8_t *)&ledpanel_buffer[src_offs];
-		}
+		else
+			/* 3 stripes, with 8 pixel rows offset */
+			src = (uint8_t *)&ledpanel_buffer[LEDPANEL_U32_PITCH *
+							  (rowaddr + s * 8)];
 
-		for (p = 0; p < 1; p++) { /* panels, now: only 1 */
-			*dst++ = '\0'; /* 8 pixels right of last col */
-			/* 40 pixels on 3 column drivers: 5 bytes */
-			if (src)
-				memcpy_bitflip_reverse(dst, src, 5);
-			else
-				memset(dst, 0xa5, 5);
-			dst += 5;
-			src += sizeof(uint32_t) * LEDPANEL_U32_PITCH;
-		}
+		/* if we have more than 1 panel, we have to shift in
+		   40 real pixels, and 8 dummy pixels, but in reverse order.
+		   The panels are in reverse order, too! This still needs
+		   to be implemented properly!
+		*/
+
+		*dst++ = '\0';
+		/* 40 pixels on 3 column drivers: 5 bytes */
+		if (src)
+			memcpy_bitflip_reverse(dst, src, 5);
+		dst += 5;
 	}
 
 #if 0
