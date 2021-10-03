@@ -1,6 +1,6 @@
 #include "subway_led_panel.h"
 #include "ledpanel_buffer.h"
-#include "usb_tty.h"
+#include "usb_if.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +61,7 @@ int main(void)
 		      GPIO13);
 	gpio_clear(GPIOC, GPIO13);
 
-	usb_tty_init();
+	usb_if_init();
 
 	ledpanel_buffer_init();
 	subway_led_panel_init();
@@ -72,6 +72,6 @@ int main(void)
 		gpio_set(GPIOB, 0xf000 & debug_ctr);
 		gpio_clear(GPIOB, 0xf000 & ~debug_ctr);
 
-		usb_tty_poll();
+		usb_if_poll();
 	}
 }
