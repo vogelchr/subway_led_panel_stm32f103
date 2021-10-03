@@ -1,1 +1,4 @@
 .pio
+test/*.raw
+test/*.mp4
+test/__pycache__
