@@ -30,7 +30,5 @@ extern uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
 
 extern void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr);
 extern void ledpanel_buffer_init(void);
-extern void ledpanel_buffer_update(unsigned int rowmode,
-				   unsigned int row_or_col);
 
 #endif

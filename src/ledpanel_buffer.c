@@ -53,17 +53,6 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 			memcpy_reverse(dst, src, 5);
 		dst += 5;
 	}
-
-#if 0
-	m_seedRand(&ledpanel_buffer_mt, rowaddr+1);
-
-	for (u=0; u<sizeof(ledpanel_buffer_shiftreg); u++) {
-		if ((u % sizeof(unsigned long)) == 0)
-			r = genRandLong(&ledpanel_buffer_mt);
-		ledpanel_buffer_shiftreg[u] = r & 0xff;
-		r >>= 8;
-	}
-#endif
 }
 
 void ledpanel_buffer_init()
@@ -79,26 +68,4 @@ void ledpanel_buffer_init()
 				LEDPANEL_SET(x, y);
 		}
 	}
-}
-
-void ledpanel_buffer_update(unsigned int rowmode, unsigned int row_or_col)
-{
-	unsigned int x, y;
-
-	memset(ledpanel_buffer, '\0', sizeof(ledpanel_buffer));
-
-	if (rowmode) {
-		if (row_or_col >= LEDPANEL_PIX_HEIGHT)
-			return;
-		y = row_or_col;
-		for (x = 0; x < LEDPANEL_PIX_WIDTH; x++)
-			LEDPANEL_SET(x, y);
-		return;
-	}
-
-	if (row_or_col >= LEDPANEL_PIX_WIDTH)
-		return;
-	x = row_or_col;
-	for (y = 0; y < LEDPANEL_PIX_HEIGHT; y++)
-		LEDPANEL_SET(x, y);
 }
