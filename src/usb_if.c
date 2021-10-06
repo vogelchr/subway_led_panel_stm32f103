@@ -90,6 +90,8 @@ usb_if_bulkout_cb(usbd_device *usbd_dev, uint8_t ep)
 	unsigned short rx_len;
 	const uint8_t *srcp, *src_end;
 
+	(void)ep;
+
 	rx_len = usbd_ep_read_packet(usbd_dev, 0x01, usb_if_rxbuf, sizeof(usb_if_rxbuf));
 
 	srcp = usb_if_rxbuf;
