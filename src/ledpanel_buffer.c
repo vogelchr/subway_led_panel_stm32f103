@@ -18,15 +18,12 @@
  *
  */
 
-#include "mtwister.h"
 #include "ledpanel_buffer.h"
 
 #include <string.h>
 
 uint32_t ledpanel_buffer[LEDPANEL_U32_PITCH * LEDPANEL_PIX_HEIGHT];
 uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
-
-// static MTRand ledpanel_buffer_mt;
 
 static void memcpy_reverse(uint8_t *restrict dst, uint8_t *restrict src,
 				   size_t len)
