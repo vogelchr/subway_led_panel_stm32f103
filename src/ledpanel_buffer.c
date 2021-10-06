@@ -8,15 +8,7 @@ uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
 
 // static MTRand ledpanel_buffer_mt;
 
-static uint8_t bitflip(uint8_t v)
-{
-	v = ((v & 0x0f) << 4) | ((v & 0xf0) >> 4);
-	v = ((v & 0x33) << 2) | ((v & 0xcc) >> 2);
-	v = ((v & 0x55) << 1) | ((v & 0xaa) >> 1);
-	return v;
-}
-
-static void memcpy_bitflip_reverse(uint8_t *restrict dst, uint8_t *restrict src,
+static void memcpy_reverse(uint8_t *restrict dst, uint8_t *restrict src,
 				   size_t len)
 {
 	uint8_t *p = dst + (len - 1);
@@ -33,13 +25,13 @@ static void memcpy_bitflip_reverse(uint8_t *restrict dst, uint8_t *restrict src,
 void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 {
 	uint8_t *dst = ledpanel_buffer_shiftreg;
-	unsigned int s, p;
+	unsigned int s;
 
 	/* this is now very specific to the single matrix */
 	/* we have 3x (16+16+8 pixels, 8 space) */
 
 	/* counts 2, 1, 0, unsigned wrap around is well defined! */
-	for (s = 2; s != ~0; s--) {
+	for (s = 2; s != (unsigned int)~0; s--) {
 		uint8_t *src;
 
 		if (s == 2 && rowaddr > 3) /* last stripe only has 4 rows */
@@ -58,7 +50,7 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 		*dst++ = '\0';
 		/* 40 pixels on 3 column drivers: 5 bytes */
 		if (src)
-			memcpy_bitflip_reverse(dst, src, 5);
+			memcpy_reverse(dst, src, 5);
 		dst += 5;
 	}
 

@@ -36,6 +36,12 @@ static unsigned int tim2_prescaler;
 
 static uint8_t curr_col = 0; /* current column */
 
+/*
+ * Timer2 overflow. Note that we generate ROW_nE1 via PWM,
+ * so that nE1 goes high (turns off driver) at the same time
+ * that the tim2_isr() fires, and will go low (turns on driver
+ * again) depending on the oc_value below in init.
+ */
 void tim2_isr()
 {
 	/* disable row and column output drivers */
@@ -70,12 +76,12 @@ void tim2_isr()
 
 	/* restart DMA to transfer SPI data */
 	DMA1_CCR(3) = 0;
-	DMA1_CNDTR(3) = 0; /* make it wait ... */
+	DMA1_CNDTR(3) = 0;
 
-	DMA1_CMAR(3) = (uint32_t)&ledpanel_buffer_shiftreg;
-	DMA1_CPAR(3) = (uint32_t)&SPI1_DR; /* peripheral address register */
+	DMA1_CMAR(3) = (uint32_t)&ledpanel_buffer_shiftreg; /* memory */
+	DMA1_CPAR(3) = (uint32_t)&SPI1_DR; /* peripheral */
 
-	DMA1_CCR(3) = DMA_CCR_MINC | DMA_CCR_DIR | DMA_CCR_EN; // | DMA_CCR_TCIE;
+	DMA1_CCR(3) = DMA_CCR_MINC | DMA_CCR_DIR | DMA_CCR_EN;
 	DMA1_CNDTR(3) = sizeof(ledpanel_buffer_shiftreg);
 
 	timer_clear_flag(TIM2, TIM_SR_UIF);
@@ -99,6 +105,60 @@ void subway_led_panel_stop()
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_TIM2_CH4);
 	gpio_set(GPIO_BANK_TIM2_CH4, GPIO_TIM2_CH4);
 	timer_disable_oc_output(TIM2, TIM_OC4);
+}
+
+/*
+ *  MBI5029 datasheet: switching to special mode
+ *
+ *         1__   2__   3__   4__   5__
+ *  CLK ___/  \__/  \__/  \__/  \__/  \___
+ *            :     :     :     :     :
+ *      ______:     :_____________________
+ *  nOE       \_____/     :     :     :
+ *            :     :     :_____:     :
+ *  LE  __________________/_____\_________
+ *                           ^
+ *                           |
+ *                 1: special, 0: normal
+ */
+
+void subway_led_panel_mbi5029_mode(int special)
+{
+	unsigned int i, u;
+	unsigned int nOE_steps[] = { 1, 0, 1, 1, 1 };
+	unsigned int LE_steps[] = { 0, 0, 0, 0, 1 };
+
+	LE_steps[3] = !!special;
+
+	/* SCK in bit-banging mode */
+	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_SPI1_SCK);
+
+	gpio_set(COL_IO_BANK, COL_PIN_OE);
+	gpio_clear(COL_IO_BANK, COL_PIN_LE);
+
+	for (i=0; i<5; i++) {
+		if (nOE_steps[i])
+			gpio_set(COL_IO_BANK, COL_PIN_OE);
+		else
+			gpio_clear(COL_IO_BANK, COL_PIN_OE);
+
+		if (LE_steps[i])
+			gpio_set(COL_IO_BANK, COL_PIN_LE);
+		else
+			gpio_clear(COL_IO_BANK, COL_PIN_LE);
+
+		gpio_clear(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
+		for (u=0; u<256; u++)
+			asm volatile ("nop");
+		gpio_set(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
+		for (u=0; u<256; u++)
+			asm volatile ("nop");
+	}
+
+	/* SPI mode again */
+	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_SCK);
 }
 
 void subway_led_panel_init()
