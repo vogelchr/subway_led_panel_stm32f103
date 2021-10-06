@@ -1,4 +1,4 @@
-#include "subway_led_panel.h"
+#include "hw_matrix.h"
 #include "ledpanel_buffer.h"
 #include "usb_if.h"
 
@@ -64,8 +64,8 @@ int main(void)
 	usb_if_init();
 
 	ledpanel_buffer_init();
-	subway_led_panel_init();
-	subway_led_panel_start();
+	hw_matrix_init();
+	hw_matrix_start();
 
 	while (1) {
 		debug_ctr++;

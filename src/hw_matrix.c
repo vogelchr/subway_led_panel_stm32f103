@@ -1,7 +1,7 @@
 /*
  */
 
-#include "subway_led_panel.h"
+#include "hw_matrix.h"
 #include "ledpanel_buffer.h"
 
 #include <stdlib.h>
@@ -87,7 +87,7 @@ void tim2_isr()
 	timer_clear_flag(TIM2, TIM_SR_UIF);
 }
 
-void subway_led_panel_start()
+void hw_matrix_start()
 {
 	/* GPIO GPIOA3 is Timer/Counter 2, Channel 4 */
 	timer_enable_oc_output(TIM2, TIM_OC4);
@@ -96,7 +96,7 @@ void subway_led_panel_start()
 	timer_enable_irq(TIM2, TIM_DIER_UIE);
 }
 
-void subway_led_panel_stop()
+void hw_matrix_stop()
 {
 	timer_disable_irq(TIM2, TIM_DIER_UIE);
 
@@ -122,7 +122,7 @@ void subway_led_panel_stop()
  *                 1: special, 0: normal
  */
 
-void subway_led_panel_mbi5029_mode(int special)
+void hw_matrix_mbi5029_mode(int special)
 {
 	unsigned int i, u;
 	unsigned int nOE_steps[] = { 1, 0, 1, 1, 1 };
@@ -161,7 +161,7 @@ void subway_led_panel_mbi5029_mode(int special)
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_SCK);
 }
 
-void subway_led_panel_init()
+void hw_matrix_init()
 {
 	/* configure GPIO outputs */
 	gpio_set_mode(ROW_IO_BANK, GPIO_MODE_OUTPUT_10_MHZ,
@@ -240,5 +240,5 @@ void subway_led_panel_init()
 	timer_set_oc_polarity_high(TIM2, TIM_OC4);
 
 	timer_enable_counter(TIM2);
-	subway_led_panel_start();
+	hw_matrix_start();
 }
