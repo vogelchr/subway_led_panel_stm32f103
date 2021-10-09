@@ -1,0 +1,39 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "~/.platformio/packages/framework-libopencm3/include",
+                "~/.platformio/packages/framework-libopencm3",
+                "./src",
+                "./include"
+            ],
+            "defines": [
+                "PLATFORMIO=50200",
+                "STM32F1",
+                "STM32F103xB",
+                "DARDUINO_BLUEPILL_F103C8",
+                "LEDPANEL_TYPE_SINGLE"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c18",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "clang-x64",
+            "compilerArgs": [
+                "-mcpu=cortex-m3",
+                "-DPLATFORMIO=50200",
+                "-DSTM32F1",
+                "-DSTM32F103xB",
+                "-DARDUINO_BLUEPILL_F103C8",
+                "-DLEDPANEL_TYPE_SINGLE",
+                "-DF_CPU=72000000L",
+                "-Iinclude",
+                "-Isrc",
+                "-I~/.platformio/packages/framework-libopencm3",
+                "-I~/.platformio/packages/framework-libopencm3/include"
+            ]
+        }
+    ],
+    "version": 4
+}
