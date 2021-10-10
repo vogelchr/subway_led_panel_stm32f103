@@ -34,10 +34,20 @@ static void memcpy_reverse(uint8_t *restrict dst, uint8_t *restrict src,
 		*p-- = *src++;
 }
 
-/* this function is the most panel specific in the whole codebase,
-   it prepares the bits in the shift register, when outputting
-   to row configuration "rowaddr", e.g. what needs to be loaded
-   when A0..A2 == rowaddr */
+/*
+ * This function is the most panel specific in the whole codebase.
+ * It translates from the ...
+ *  "normal screen pixel order" framebuffer ledpanel_buffer[] to the
+ *  "shiftregister pixel order" ledpanel_buffer_shiftreg[] which gets
+ * sent out by the SPI peripheral.
+ *
+ * I haven't bothered to add constants for the various magic
+ * numbers, as they all only should be used here.
+ *
+ * Rowaddr is the row-address selection A0..A2 for the panel hardware
+ * and the function will fill the shiftregister matching this address
+ * configuration.
+ */
 
 void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 {
@@ -47,10 +57,16 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 	unsigned int p;
 #endif
 
-	/* this is now very specific to the single matrix */
-	/* we have 3x (16+16+8 pixels, 8 space) */
+	/*
+	 * write output for the three "strips" consisting of
+	 * pixel data for row, row+8 and row+16. As we only
+	 * have 20 rows in total, we fill dummy data for the
+	 * third strip, if rowaddr > 3.
+	 *
+	 * As usual, we first write out bits for the "later"
+	 * strip, so we count s=2, s=1, s=0.
+	 */
 
-	/* counts 2, 1, 0, unsigned wrap around is well defined! */
 	for (s = 2; s != (unsigned int)~0; s--) {
 		uint8_t *src;
 

@@ -30,6 +30,15 @@
 #define LEDPANEL_U32_PITCH ((LEDPANEL_PIX_WIDTH + 31) / 32)
 #define LEDPANEL_U8_PITCH ((LEDPANEL_PIX_WIDTH + 7) / 8)
 
+/*
+ * ledpanel_buffer is our framebuffer in memory, consisting of 32 bit words.
+ *
+ * The first pixel of the first row (upper left) is LSB of word 0.
+ * Lines are 32bit aligned, so for a 120 pixel wide framebuffer, we
+ * use 4 32-bit words (128 bits), and with 20 lines used, our total
+ * framebuffer size is 4 * 20 = 80 words, 320 bytes.
+ */
+
 #define LEDPANEL_WORD(x, y)                                                    \
 	(ledpanel_buffer[((x) / 32) + LEDPANEL_U32_PITCH * (y)])
 #define LEDPANEL_BIT(x) (1 << ((x) % 32))
@@ -45,9 +54,17 @@
 	} while (0)
 
 extern uint32_t ledpanel_buffer[LEDPANEL_U32_PITCH * LEDPANEL_PIX_HEIGHT];
+
+/* hw specific buffer of pixels, to be written out by the SPI hardware */
 extern uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
 
+/* copy the pixels corresponding to row-driver address 'rowaddr' from
+ * the global ledpanel_buffer to the global ledpanel_buffer_shiftreg,
+ * this function is highly hw dependent, and will be called from the
+ * ISR for the timer running the panel refresh! */
 extern void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr);
+
+/* clean ledpanel_buffer, will initialize the display with a 5x5 grid */
 extern void ledpanel_buffer_init(void);
 
 #endif
