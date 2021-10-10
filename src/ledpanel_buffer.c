@@ -43,6 +43,9 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 {
 	uint8_t *dst = ledpanel_buffer_shiftreg;
 	unsigned int s;
+#if LEDPANEL_TYPE_TRIPLE
+	unsigned int p;
+#endif
 
 	/* this is now very specific to the single matrix */
 	/* we have 3x (16+16+8 pixels, 8 space) */
@@ -58,17 +61,31 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 			src = (uint8_t *)&ledpanel_buffer[LEDPANEL_U32_PITCH *
 							  (rowaddr + s * 8)];
 
-		/* if we have more than 1 panel, we have to shift in
-		   40 real pixels, and 8 dummy pixels, but in reverse order.
-		   The panels are in reverse order, too! This still needs
-		   to be implemented properly!
-		*/
-
+#if LEDPANEL_TYPE_TRIPLE
+		/*
+		 * Full panel has three modules (p=2, p=1, p=0).
+		 * First copy data for the rightmost, then middle, then left.
+		 * Copy in 8 dummy pixels first (8 last outputs or 3rd
+		 * column driver). Horzontal offset in framebuffer is
+		 * 5 bytes (40 pixel) for each module.
+		 */
+		for (p=2; p != (unsigned int)~0; p--) {
+			*dst++ = '\0';
+			if (src)
+				memcpy_reverse(dst, src + p*5, 5);
+			dst += 5;
+		}
+#else
+		/*
+		 * Single module for testing, copy in the bits for the
+		 * unconnected output first, then 40 bits (5 bytes) in
+		 * reverse order.
+		 */
 		*dst++ = '\0';
-		/* 40 pixels on 3 column drivers: 5 bytes */
 		if (src)
 			memcpy_reverse(dst, src, 5);
 		dst += 5;
+#endif
 	}
 }
 
