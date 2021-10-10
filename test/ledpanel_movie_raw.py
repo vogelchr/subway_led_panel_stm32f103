@@ -17,7 +17,7 @@ parser.add_argument('raw_movie_file', type=Path,
 args = parser.parse_args()
 
 
-dev = usb.core.find(idVendor=0x0483, idProduct=0x5740)
+dev = usb.core.find(idVendor=0x4e65, idProduct=0x7264)
 dev.set_configuration()
 dev.ctrl_transfer(0x40, 0) # any control transfer will reset the write pointer ;-)
 

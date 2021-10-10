@@ -44,12 +44,12 @@ static const struct usb_device_descriptor dev = {
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
 	.bMaxPacketSize0 = 64,
-	.idVendor = 0x0483,
-	.idProduct = 0x5740,
+	.idVendor = 0x4e65, /* {0x4e,0x65,0x72,0x64} = "Nerd" */
+	.idProduct = 0x7264,
 	.bcdDevice = 0x0200,
-	.iManufacturer = 1,
-	.iProduct = 2,
-	.iSerialNumber = 3,
+	.iManufacturer = 1, /* usb_strings[0] */
+	.iProduct = 2, /* usb_strings[1] */
+	.iSerialNumber = 3, /* usb_strings[2] */
 	.bNumConfigurations = 1,
 };
 
@@ -95,9 +95,9 @@ static const struct usb_config_descriptor usb_if_config = {
 };
 
 static const char *usb_strings[] = {
-	"github.com/vogelchr",
-	"subway led sign",
-	"0000001",
+	"Christian Vogel <vogelchr@vogel.cx>",
+	"https://github.com/vogelchr/subway_led_panel_stm32f103",
+	"1",
 };
 
 static uint8_t * const fb_start = (uint8_t*)ledpanel_buffer;
