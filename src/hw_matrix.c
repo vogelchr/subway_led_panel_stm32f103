@@ -47,7 +47,7 @@
 
 /* for timer configuration */
 static const unsigned int led_cycles = 8; /* 8 row cycles */
-static const unsigned int led_refresh = 60; /* Hz */
+static const unsigned int led_refresh = 250; /* Hz */
 static const unsigned int tim2_period = 1000;
 static unsigned int tim2_prescaler;
 
