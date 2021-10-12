@@ -20,6 +20,7 @@
 
 #include "usb_if.h"
 #include "ledpanel_buffer.h"
+#include "hw_matrix.h"
 
 #include <stdlib.h>
 
@@ -136,9 +137,22 @@ usb_if_control_cb(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **b
 	if (req->bmRequestType != USB_REQ_TYPE_VENDOR)
 		return USBD_REQ_NOTSUPP; /* Only accept vendor request. */
 
-	/* the only action currently defined is to reset the framebuffer pointer! */
-	fb_writep = fb_start;
-
+	switch (req->bRequest) {
+	case USB_IF_REQUEST_RESET_WRITEPTR:
+		fb_writep = fb_start;
+		break;
+	case USB_IF_REQUEST_PANEL_ONOFF:
+		if (req->wValue)
+			hw_matrix_stop();
+		else
+			hw_matrix_start();
+		break;
+	case USB_IF_REQUEST_PANEL_BRIGHTNESS:
+		// hw_matrix_brightness(req->wValue);
+		break;
+	default:
+		return USBD_REQ_NOTSUPP;
+	}
 	return USBD_REQ_HANDLED;
 }
 
