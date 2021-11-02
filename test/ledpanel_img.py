@@ -25,9 +25,10 @@ if dev is None :
 
 dev.set_configuration()
 
-if args.pngfile.as_posix() == 'white':
+if args.pngfile.as_posix() in ['white', 'black']:
     img = PIL.Image.new('L', (args.width, args.height))
-    img.paste((255,), (0, 0, img.size[0], img.size[1]))
+    if args.pngfile.as_posix() == 'white':
+        img.paste((255,), (0, 0, img.size[0], img.size[1]))
 else:
     img = PIL.Image.open(args.pngfile)
 
