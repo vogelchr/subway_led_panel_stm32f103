@@ -81,6 +81,11 @@ int main(void)
 		      GPIO13);
 	gpio_clear(GPIOC, GPIO13);
 
+	/* PCB modification, USB D+ Pullup connected to PB11 */
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL,
+		      0x0800);
+	gpio_set(GPIOB, 0x0800); /* PB11 */
+
 	usb_if_init();
 
 	ledpanel_buffer_init();
