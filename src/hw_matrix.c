@@ -104,8 +104,12 @@ void tim2_isr()
 	timer_clear_flag(TIM2, TIM_SR_UIF);
 }
 
+void hw_matrix_mbi5029_mode(int special);
+
 void hw_matrix_start()
 {
+	hw_matrix_mbi5029_mode(0);
+
 	/* GPIO GPIOA3 is Timer/Counter 2, Channel 4 */
 	timer_enable_oc_output(TIM2, TIM_OC4);
 	gpio_set_mode(GPIO_BANK_TIM2_CH4, GPIO_MODE_OUTPUT_10_MHZ,
@@ -122,6 +126,8 @@ void hw_matrix_stop()
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_TIM2_CH4);
 	gpio_set(GPIO_BANK_TIM2_CH4, GPIO_TIM2_CH4);
 	timer_disable_oc_output(TIM2, TIM_OC4);
+
+	hw_matrix_mbi5029_mode(1);
 }
 
 /*
@@ -176,6 +182,47 @@ void hw_matrix_mbi5029_mode(int special)
 	/* SPI mode again */
 	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_SCK);
+}
+
+void hw_matrix_brightness(unsigned int brightness)
+{
+	unsigned int bitno, chipno, u;
+
+	/* SCK in bit-banging mode */
+	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_SPI1_SCK);
+	gpio_set_mode(GPIO_BANK_SPI1_MOSI, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_SPI1_MOSI);
+
+	gpio_clear(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
+	gpio_clear(GPIO_BANK_SPI1_MOSI, GPIO_SPI1_MOSI);
+
+	for (chipno = 0; chipno < LEDPANEL_SPI_BYTES / 2; chipno++) {
+		for (bitno = 0; bitno < 16; bitno++) {
+			if (chipno == LEDPANEL_SPI_BYTES / 2 - 1 &&
+			    bitno == 15) {
+				gpio_set(COL_IO_BANK, COL_PIN_LE);
+			}
+			if (brightness & (1<<bitno)) {
+				gpio_set(GPIO_BANK_SPI1_MOSI, GPIO_SPI1_MOSI);
+			} else {
+				gpio_clear(GPIO_BANK_SPI1_MOSI, GPIO_SPI1_MOSI);
+			}
+			for (u=0; u<32; u++)
+				asm volatile ("nop");
+			gpio_set(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
+			for (u=0; u<32; u++)
+				asm volatile ("nop");
+			gpio_clear(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
+		}
+	}
+	gpio_clear(COL_IO_BANK, COL_PIN_LE);
+
+	/* SPI mode again */
+	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_SCK);
+	gpio_set_mode(GPIO_BANK_SPI1_MOSI, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_MOSI);
 }
 
 void hw_matrix_init()
