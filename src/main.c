@@ -36,6 +36,8 @@
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/spi.h>
 
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+
 static uint32_t systick;
 
 void sys_tick_handler()
@@ -49,7 +51,20 @@ void sys_tick_handler()
 	}
 }
 
+/* debug LEDs, just to entertain the user... */
+
 static uint16_t debug_ctr;
+static uint16_t debug_led_pattern_ctr;
+uint16_t debug_led_pattern[] = {
+	0x8000,
+	0x4000,
+	0x2000,
+	0x1000,
+	0x1000,
+	0x2000,
+	0x4000,
+	0x8000
+};
 
 int main(void)
 {
@@ -69,8 +84,8 @@ int main(void)
 	rcc_periph_clock_enable(RCC_GPIOC);
 
 	/* debug LEDs PB12, 13, 14, 15 */
-	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, 0xf000);
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL,
+		      0xf000);
 
 	/* systick handler */
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
@@ -93,9 +108,13 @@ int main(void)
 	hw_matrix_start();
 
 	while (1) {
-		debug_ctr++;
-		gpio_set(GPIOB, 0xf000 & debug_ctr);
-		gpio_clear(GPIOB, 0xf000 & ~debug_ctr);
+		if(!debug_ctr++) {
+			if (++debug_led_pattern_ctr >= ARRAY_SIZE(debug_led_pattern)) {
+				debug_led_pattern_ctr=0;
+			}
+			gpio_set(GPIOB, 0xf000 & debug_led_pattern[debug_led_pattern_ctr]);
+			gpio_clear(GPIOB, 0xf000 & ~debug_led_pattern[debug_led_pattern_ctr]);
+		};
 
 		usb_if_poll();
 	}
