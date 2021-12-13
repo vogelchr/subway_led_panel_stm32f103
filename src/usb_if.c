@@ -143,12 +143,12 @@ usb_if_control_cb(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **b
 		break;
 	case USB_IF_REQUEST_PANEL_ONOFF:
 		if (req->wValue)
-			hw_matrix_stop();
-		else
 			hw_matrix_start();
+		else
+			hw_matrix_stop();
 		break;
 	case USB_IF_REQUEST_PANEL_BRIGHTNESS:
-		// hw_matrix_brightness(req->wValue);
+		hw_matrix_brightness(req->wValue);
 		break;
 	default:
 		return USBD_REQ_NOTSUPP;
@@ -164,7 +164,7 @@ static void usb_if_config_cb(usbd_device *usbd_dev, uint16_t wValue)
 				usbd_dev,
 				USB_REQ_TYPE_VENDOR,
 				USB_REQ_TYPE_TYPE,
-				usb_if_control_cb);
+				(void*)usb_if_control_cb);
 
 	usbd_ep_setup(usbd_dev,
 		0x01, /* ep addr */
