@@ -7,6 +7,7 @@ import argparse
 USB_IF_REQUEST_RESET_WRITEPTR=0x0000
 USB_IF_REQUEST_PANEL_ONOFF=0x0001
 USB_IF_REQUEST_PANEL_BRIGHTNESS=0x0002
+USB_IF_REQUEST_MBI5029_MODE=0x0003
 
 from pathlib import Path
 
@@ -15,6 +16,7 @@ parser.add_argument('--reset', action='store_true')
 parser.add_argument('--stop', action='store_true')
 parser.add_argument('--start', action='store_true')
 parser.add_argument('--bright', type=int)
+parser.add_argument('--mbi5029-mode', type=int)
 
 args = parser.parse_args()
 
@@ -33,5 +35,7 @@ elif args.start :
     dev.ctrl_transfer(0x40, USB_IF_REQUEST_PANEL_ONOFF, 1)
 elif args.bright is not None :
     dev.ctrl_transfer(0x40, USB_IF_REQUEST_PANEL_BRIGHTNESS, args.bright)
+elif args.mbi5029_mode is not None :
+    dev.ctrl_transfer(0x40, USB_IF_REQUEST_MBI5029_MODE, args.mbi5029_mode)
 
 
