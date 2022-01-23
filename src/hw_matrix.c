@@ -135,33 +135,46 @@ void hw_matrix_stop()
  *
  *         1__   2__   3__   4__   5__
  *  CLK ___/  \__/  \__/  \__/  \__/  \___
- *            :     :     :     :     :
+ *      :     :     :     :     :     :
  *      ______:     :_____________________
- *  nOE       \_____/     :     :     :
- *            :     :     :_____:     :
+ *  nOE :     \_____/     :     :     :
+ *      :     :     :     :_____:     :
  *  LE  __________________/_____\_________
- *                           ^
- *                           |
- *                 1: special, 0: normal
+ *      :     :     :     :  ^  :     :
+ *      :     :     :     :  |  :     :
+ *      :     :     :     :     :     :
+ *       [0]   [1]   [2]   [3]   [4]
+ *
+ *  During the 4th clock cycle (index [3]), if LE
+ *  is high, we are in the special mode, if LE is
+ *  low, we are in the normal mode.
+ *
+ *  Data is latched into the chip on the rising edge.
+ *
+ *  Note that there is an inverter between our
+ *  output pins, and the input to the chip (on the
+ *  LED matrix board itself), so we have to set
+ *  "nOE_inv" high.
  */
 
 void hw_matrix_mbi5029_mode(int special)
 {
 	unsigned int i, u;
-	unsigned int nOE_steps[] = { 1, 0, 1, 1, 1 };
-	unsigned int LE_steps[] = { 0, 0, 0, 0, 1 };
+	unsigned int nOE_inv_steps[] = { 0, 1, 0, 0, 0 };
+	unsigned int LE_steps[] = { 0, 0, 0, 1, 0 };
 
 	LE_steps[3] = !!special;
 
 	/* SCK in bit-banging mode */
+	gpio_clear(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
 	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_SPI1_SCK);
 
-	gpio_set(COL_IO_BANK, COL_PIN_OE);
+	gpio_clear(COL_IO_BANK, COL_PIN_OE);
 	gpio_clear(COL_IO_BANK, COL_PIN_LE);
 
 	for (i=0; i<5; i++) {
-		if (nOE_steps[i])
+		if (nOE_inv_steps[i])
 			gpio_set(COL_IO_BANK, COL_PIN_OE);
 		else
 			gpio_clear(COL_IO_BANK, COL_PIN_OE);
