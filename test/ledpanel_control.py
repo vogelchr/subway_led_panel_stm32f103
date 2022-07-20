@@ -32,6 +32,8 @@ elif args.stop :
 elif args.start :
     dev.ctrl_transfer(0x40, USB_IF_REQUEST_PANEL_ONOFF, 1)
 elif args.bright is not None :
+    dev.ctrl_transfer(0x40, USB_IF_REQUEST_PANEL_ONOFF, 0)
     dev.ctrl_transfer(0x40, USB_IF_REQUEST_PANEL_BRIGHTNESS, args.bright)
+    dev.ctrl_transfer(0x40, USB_IF_REQUEST_PANEL_ONOFF, 1)
 
 

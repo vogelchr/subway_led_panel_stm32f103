@@ -52,6 +52,7 @@ static const unsigned int tim2_period = 1000;
 static unsigned int tim2_prescaler;
 
 static uint8_t curr_col = 0; /* current column */
+static uint8_t scanning_is_on = 0;
 
 /*
  * Timer2 overflow. Note that we generate ROW_nE1 via PWM,
@@ -104,22 +105,33 @@ void tim2_isr()
 	timer_clear_flag(TIM2, TIM_SR_UIF);
 }
 
-void hw_matrix_mbi5029_mode(int special);
-
 void hw_matrix_start()
 {
-	hw_matrix_mbi5029_mode(0);
+	/* restart at column 0 at restart */
+	curr_col = 0xff;
+	scanning_is_on = 1;
 
 	/* GPIO GPIOA3 is Timer/Counter 2, Channel 4 */
 	timer_enable_oc_output(TIM2, TIM_OC4);
 	gpio_set_mode(GPIO_BANK_TIM2_CH4, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_TIM2_CH4);
+	timer_set_counter(TIM2, 0);
+	timer_enable_counter(TIM2);
 	timer_enable_irq(TIM2, TIM_DIER_UIE);
 }
 
 void hw_matrix_stop()
 {
 	timer_disable_irq(TIM2, TIM_DIER_UIE);
+	timer_set_counter(TIM2, 0);
+	timer_disable_counter(TIM2);
+
+	/* stop DMA */
+	DMA1_CCR(3) = 0;
+	DMA1_CNDTR(3) = 0;
+
+	/* disable column drivers */
+	gpio_clear(COL_IO_BANK, COL_PIN_OE);
 
 	/* GPIO GPIOA3 is Timer/Counter 2, Channel 4 */
 	gpio_set_mode(GPIO_BANK_TIM2_CH4, GPIO_MODE_OUTPUT_10_MHZ,
@@ -127,7 +139,7 @@ void hw_matrix_stop()
 	gpio_set(GPIO_BANK_TIM2_CH4, GPIO_TIM2_CH4);
 	timer_disable_oc_output(TIM2, TIM_OC4);
 
-	hw_matrix_mbi5029_mode(1);
+	scanning_is_on = 0;
 }
 
 /*
@@ -143,28 +155,26 @@ void hw_matrix_stop()
  *                           ^
  *                           |
  *                 1: special, 0: normal
+ *
+ * This function must be called with the SCK pin
+ * set as a normal GPIO!
  */
 
-void hw_matrix_mbi5029_mode(int special)
+static void hw_matrix_mbi5029_mode(int special)
 {
 	unsigned int i, u;
 	unsigned int nOE_steps[] = { 1, 0, 1, 1, 1 };
-	unsigned int LE_steps[] = { 0, 0, 0, 0, 1 };
+	unsigned int LE_steps[] = { 0, 0, 0, 0, 0 };
 
 	LE_steps[3] = !!special;
 
-	/* SCK in bit-banging mode */
-	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO_SPI1_SCK);
-
-	gpio_set(COL_IO_BANK, COL_PIN_OE);
-	gpio_clear(COL_IO_BANK, COL_PIN_LE);
-
 	for (i=0; i<5; i++) {
+		/* datasheet specifies sequence for *n*OE,
+		   but our IO signal is once more inverted! */
 		if (nOE_steps[i])
-			gpio_set(COL_IO_BANK, COL_PIN_OE);
-		else
 			gpio_clear(COL_IO_BANK, COL_PIN_OE);
+		else
+			gpio_set(COL_IO_BANK, COL_PIN_OE);
 
 		if (LE_steps[i])
 			gpio_set(COL_IO_BANK, COL_PIN_LE);
@@ -172,21 +182,42 @@ void hw_matrix_mbi5029_mode(int special)
 			gpio_clear(COL_IO_BANK, COL_PIN_LE);
 
 		gpio_clear(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
-		for (u=0; u<256; u++)
+		for (u=0; u<32; u++)
 			asm volatile ("nop");
 		gpio_set(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
-		for (u=0; u<256; u++)
+		for (u=0; u<32; u++)
 			asm volatile ("nop");
 	}
-
-	/* SPI mode again */
-	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_SPI1_SCK);
 }
 
 void hw_matrix_brightness(unsigned int brightness)
 {
 	unsigned int bitno, chipno, u;
+	uint16_t cmd;
+
+	if (scanning_is_on)
+		return;
+
+	/* the datasheet is very misleading. On page 21, there is
+	   the 16bit configuration code:
+
+          +----+----+----+----+----+----+----+----+---------+
+	Bits: | 0  | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8 .. 15 |
+          +----+----+----+----+----+----+----+----+---------+
+          | X  | HC | C0 | C1 | C2 | C3 | C4 | C5 | X ..  X |
+          +----+----+----+----+----+----+----+----+---------+
+
+	But given the formula (which is also misleading, 20 means
+	2^0 .. 25 means 2^5) there are two ranges defined by HC with
+	a two-piece linear function. Also HC is the MSB and CC5 is LSB!
+
+	Also, this codeword is transmitted Bit15 first, Bit0 last,
+	as visible in the "timing chart" for current adjust mode,
+	so we can actually just copy in brightness in the cmdword
+	and transmit it lsb first! */
+
+	/* cmdword = 8 zeros, brightness, 1 zero */
+	cmd = ((uint16_t)brightness & 0x7f) << 8;
 
 	/* SCK in bit-banging mode */
 	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
@@ -197,13 +228,15 @@ void hw_matrix_brightness(unsigned int brightness)
 	gpio_clear(GPIO_BANK_SPI1_SCK, GPIO_SPI1_SCK);
 	gpio_clear(GPIO_BANK_SPI1_MOSI, GPIO_SPI1_MOSI);
 
+	hw_matrix_mbi5029_mode(1);
+
 	for (chipno = 0; chipno < LEDPANEL_SPI_BYTES / 2; chipno++) {
 		for (bitno = 0; bitno < 16; bitno++) {
 			if (chipno == LEDPANEL_SPI_BYTES / 2 - 1 &&
 			    bitno == 15) {
 				gpio_set(COL_IO_BANK, COL_PIN_LE);
 			}
-			if (brightness & (1<<bitno)) {
+			if (cmd & (1<<bitno)) {
 				gpio_set(GPIO_BANK_SPI1_MOSI, GPIO_SPI1_MOSI);
 			} else {
 				gpio_clear(GPIO_BANK_SPI1_MOSI, GPIO_SPI1_MOSI);
@@ -217,6 +250,8 @@ void hw_matrix_brightness(unsigned int brightness)
 		}
 	}
 	gpio_clear(COL_IO_BANK, COL_PIN_LE);
+
+	hw_matrix_mbi5029_mode(0);
 
 	/* SPI mode again */
 	gpio_set_mode(GPIO_BANK_SPI1_SCK, GPIO_MODE_OUTPUT_10_MHZ,
@@ -300,9 +335,8 @@ void hw_matrix_init()
 	/* TImer2, CH2 on PA4 */
 	timer_set_oc_mode(TIM2, TIM_OC4, TIM_OCM_PWM1);
 	/* on for only a fifth of the time */
-	timer_set_oc_value(TIM2, TIM_OC4, (4 * tim2_period) / 5);
+	timer_set_oc_value(TIM2, TIM_OC4, (9 * tim2_period) / 10);
 	timer_set_oc_polarity_high(TIM2, TIM_OC4);
 
-	timer_enable_counter(TIM2);
 	hw_matrix_start();
 }
