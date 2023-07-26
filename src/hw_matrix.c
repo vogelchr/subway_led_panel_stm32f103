@@ -275,7 +275,7 @@ void hw_matrix_init()
 	/* === SPI1 init === */
 	/* software slave management, internal slave select, spi enable, master mode, baudrate */
 	SPI1_CR1 = SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_SPE | SPI_CR1_MSTR |
-		   (SPI_CR1_BR_FPCLK_DIV_64 << 3) | SPI_CR1_CPHA;
+		   (SPI_CR1_BR_FPCLK_DIV_64 << 3) | SPI_CR1_CPHA | SPI_CR1_LSBFIRST;
 	SPI1_CR2 = SPI_CR2_TXDMAEN; /* enable DMA */
 
 	/* CLK and MOSI are outputs in alternate mode, MISO is input with weak pullup */

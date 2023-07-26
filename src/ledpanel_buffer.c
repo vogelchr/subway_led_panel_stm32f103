@@ -22,7 +22,7 @@
 
 #include <string.h>
 
-uint32_t ledpanel_buffer[LEDPANEL_U32_PITCH * LEDPANEL_PIX_HEIGHT];
+uint8_t ledpanel_buffer[LEDPANEL_U8_PITCH * LEDPANEL_PIX_HEIGHT];
 uint8_t ledpanel_buffer_shiftreg[LEDPANEL_SPI_BYTES];
 
 static void memcpy_reverse(uint8_t *restrict dst, uint8_t *restrict src,
@@ -74,7 +74,7 @@ void ledpanel_buffer_prepare_shiftreg(unsigned int rowaddr)
 			src = NULL;
 		else
 			/* 3 stripes, with 8 pixel rows offset */
-			src = (uint8_t *)&ledpanel_buffer[LEDPANEL_U32_PITCH *
+			src = (uint8_t *)&ledpanel_buffer[LEDPANEL_U8_PITCH *
 							  (rowaddr + s * 8)];
 
 #if LEDPANEL_TYPE_TRIPLE
