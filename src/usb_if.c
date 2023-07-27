@@ -148,7 +148,7 @@ usb_if_control_cb(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **b
 			hw_matrix_stop();
 		break;
 	case USB_IF_REQUEST_PANEL_BRIGHTNESS:
-		hw_matrix_brightness(req->wValue);
+		hw_matrix_pwm(req->wValue);
 		break;
 	case USB_IF_REQUEST_MBI5029_MODE:
 		hw_matrix_mbi5029_mode(req->wValue);

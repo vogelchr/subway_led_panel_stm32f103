@@ -104,8 +104,6 @@ void tim2_isr()
 	timer_clear_flag(TIM2, TIM_SR_UIF);
 }
 
-void hw_matrix_mbi5029_mode(int special);
-
 void hw_matrix_start()
 {
 	hw_matrix_mbi5029_mode(0);
@@ -128,6 +126,15 @@ void hw_matrix_stop()
 	timer_disable_oc_output(TIM2, TIM_OC4);
 
 	hw_matrix_mbi5029_mode(1);
+}
+
+void hw_matrix_pwm(unsigned char brightness)
+{
+	/* max 1/257 of tim2_period */
+	/* min 256/256 of tim2_period */
+
+	unsigned int upper_edge = (256 - (unsigned int)brightness) * tim2_period / 257;
+	timer_set_oc_value(TIM2, TIM_OC4, upper_edge);
 }
 
 /*
@@ -312,9 +319,9 @@ void hw_matrix_init()
 
 	/* TImer2, CH2 on PA4 */
 	timer_set_oc_mode(TIM2, TIM_OC4, TIM_OCM_PWM1);
-	/* on for only a fifth of the time */
-	timer_set_oc_value(TIM2, TIM_OC4, (4 * tim2_period) / 5);
 	timer_set_oc_polarity_high(TIM2, TIM_OC4);
+
+	hw_matrix_pwm(64); /* about 25% brightness */
 
 	timer_enable_counter(TIM2);
 	hw_matrix_start();
