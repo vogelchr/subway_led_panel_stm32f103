@@ -51,7 +51,7 @@ static const unsigned int led_refresh = 250; /* Hz */
 static const unsigned int tim2_period = 1000;
 static unsigned int tim2_prescaler;
 
-static uint8_t curr_col = 0; /* current column */
+static uint8_t curr_row = 0; /* current row */
 
 /*
  * Timer2 overflow. Note that we generate ROW_nE1 via PWM,
@@ -64,29 +64,29 @@ void tim2_isr()
 	/* disable row and column output drivers */
 	gpio_clear(COL_IO_BANK, COL_PIN_OE);
 
-	if (curr_col < 8) {
+	if (curr_row < 8) {
 		/* latch data from shiftregs to column driver out */
 		gpio_set(COL_IO_BANK, COL_PIN_LE);
 
 		/* set row select pins for the row that has been
 		   transfered before */
-		gpio_clear(ROW_IO_BANK, 0x0007 & ~curr_col);
-		gpio_set(ROW_IO_BANK, 0x0007 & curr_col);
+		gpio_clear(ROW_IO_BANK, 0x0007 & ~curr_row);
+		gpio_set(ROW_IO_BANK, 0x0007 & curr_row);
 
 		/* enable row and column output drivers */
 		gpio_set(COL_IO_BANK, COL_PIN_OE);
 
 		/* next row to be transfered: */
-		curr_col = (curr_col + 1) & 7;
+		curr_row = (curr_row + 1) & 7;
 	} else {
 		/* special handling for the first row that's ever
 		transfered, there's not yet valid data in the
 		column drivers, so don't enable the outputs */
-		curr_col = 0;
+		curr_row = 0;
 	}
 
 	/* prepare bits to send to the column driver in correct order */
-	ledpanel_buffer_prepare_shiftreg(curr_col);
+	ledpanel_buffer_prepare_shiftreg(curr_row);
 
 	/* deassert latch enable pin */
 	gpio_clear(COL_IO_BANK, COL_PIN_LE);
